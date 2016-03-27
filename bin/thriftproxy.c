@@ -1,13 +1,14 @@
 #include <zocle/zocle.h>
 #include <ev.h>
 #include "config.h"
+#include "connection.h"
 
 
 int thriftproxy_connected(zcAsynIO *conn) 
 {
     ZCINFO("connected!");
     zc_socket_linger(conn->sock, 1, 0); 
-    //zc_asynio_read_until(conn, "\r\n", my_handle_read_line);
+    zc_asynio_read_bytes(conn, 4, conn_read_head);
 
     return ZC_OK;
 }
@@ -22,7 +23,7 @@ int serve()
     
     struct ev_loop *loop = ev_default_loop (0);
 
-    ZCNOTICE("server started at %s:%d %d", g_conf->ip, g_conf->port, g_conf->timeout);
+    ZCNOTICE("server started at %s:%d timeout=%d", g_conf->ip, g_conf->port, g_conf->timeout);
     zcAsynIO *conn = zc_asynio_new_tcp_server(g_conf->ip, g_conf->port, g_conf->timeout, &p, loop, 1024, 1024);
     if (NULL == conn) {
         ZCERROR("server create error");
@@ -47,9 +48,10 @@ int main(int argc, char *argv[])
 
     char *filename = argv[1];
     config_load(filename);
-    zc_log_new(g_conf->logfile, g_conf->loglevel);
-    
 
+    zc_log_new(g_conf->logfile, g_conf->loglevel);
+    config_print();
+    
     serve();
 
     return 0;
