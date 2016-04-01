@@ -24,6 +24,7 @@ typedef struct backend_t
 	int		port;
 	int		timeout;
 	int		weight;
+	int		max_conn; 
 }Backend;
 
 typedef struct group_t
@@ -34,10 +35,25 @@ typedef struct group_t
 	uint16_t	mode;
 	uint16_t	copy_num;
 	int			server_weight; // weight sum
-	zcList		*server;
-	Backend		*cur;
-    zcList      *method;
+	zcList		*server; // all server
+	//Backend		*cur; // 
+    zcList      *method; // all method
 }Group;
+
+Group*	group_new();
+void	group_delete(void*);
+
+typedef struct backendinfo_t
+{
+	Backend		*server;
+
+}BackendInfo;
+
+typedef struct policy_t
+{
+	BackendInfo	*server_info;
+	Backend		*cur;   // current backend server, for server select
+}Policy;
 
 
 

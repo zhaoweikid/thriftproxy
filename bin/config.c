@@ -41,7 +41,7 @@ Config* config_load(char *filename)
     }
 
     g_conf->daemon = zc_confdict_get_int(cfdic, "main", "daemon", 0);
-    if (g_conf->daemon == 0) {
+    if (g_conf->daemon != 0 && g_conf->daemon != 1) {
         ZCFATAL("main.daemon parse error!");
     }
 
@@ -79,16 +79,15 @@ Config* config_load(char *filename)
     }
     snprintf(g_conf->datafile, sizeof(g_conf->datafile), "%s", value);
 
-    g_conf->server = zc_dict_new(10000, 0);
-    g_conf->method = zc_dict_new(10000, 0);
-    g_conf->group  = zc_dict_new(10000, 0);
+    g_conf->server = zc_dict_new_full(10000, 0, zc_free_func, zc_free_func);
+    // method -> group
+    g_conf->method = zc_dict_new(10000, 0); 
+    g_conf->group  = zc_dict_new_full(10000, 0, zc_free_func, group_delete);
 
     char *nodekey;
     zc_dict_foreach_keys_start(cfdic->groups, nodekey)
         if (strncmp(nodekey, "backend:", 8) == 0) {
-            //ZCDEBUG("foreach key:%s\n", nodekey);
-            Backend *backend;
-            backend = zc_calloct(Backend);
+            Backend *backend = zc_calloct(Backend);
 
             value = zc_confdict_get_str(cfdic, nodekey, "ip", NULL);
             if (NULL == value) {
@@ -107,9 +106,10 @@ Config* config_load(char *filename)
             }
 
             backend->weight = zc_confdict_get_int(cfdic, nodekey, "weight", 1);
+            backend->max_conn = zc_confdict_get_int(cfdic, nodekey, "max_conn", 3);
             
             value = nodekey;
-            value += 8; 
+            value += 8;  // skip backend:
             snprintf(backend->name, sizeof(backend->name), "%s", value);
             //ZCDEBUG("dict add server %s, %p\n", value, backend);
             zc_dict_add(g_conf->server, value, strlen(value), backend);
@@ -118,13 +118,13 @@ Config* config_load(char *filename)
 
     zc_dict_foreach_keys_start(cfdic->groups, nodekey) 
         if (strncmp(nodekey, "group:", 6) == 0) {
-            //ZCDEBUG("foreach key:%s\n", nodekey);
-            Group* group = zc_calloct(Group);
-            group->server = zc_list_new();
-            group->method = zc_list_new();
+            //Group* group  = zc_calloct(Group);
+            //group->server = zc_list_new();
+            //group->method = zc_list_new();
 
+            Group* group  = group_new();
             value = nodekey;
-            value += 6;
+            value += 6; // skip group:
             snprintf(group->name, sizeof(group->name), "%s", value);
 
             //ZCDEBUG("dict add group %s, %p\n", group->name, group);
@@ -244,18 +244,19 @@ config_print()
     char *nodekey;
     zc_dict_foreach_keys_start(cf->server, nodekey) 
         Backend *b = (Backend*)node->value;
-        ZCNOTE("backend:%s.ip = %s", nodekey, b->ip);
-        ZCNOTE("backend:%s.port = %d", nodekey, b->port);
-        ZCNOTE("backend:%s.timeout = %d", nodekey, b->timeout);
-        ZCNOTE("backend:%s.weight = %d", nodekey, b->weight);
+        ZCNOTE("backend:%s.ip       = %s", nodekey, b->ip);
+        ZCNOTE("backend:%s.port     = %d", nodekey, b->port);
+        ZCNOTE("backend:%s.timeout  = %d", nodekey, b->timeout);
+        ZCNOTE("backend:%s.weight   = %d", nodekey, b->weight);
+        ZCNOTE("backend:%s.max_conn = %d", nodekey, b->max_conn);
     zc_dict_foreach_keys_end
 
     zc_dict_foreach_keys_start(cf->group, nodekey) 
         Group *p = (Group*)node->value;
-        ZCNOTE("group:%s.policy = %d", nodekey, p->policy);
-        ZCNOTE("group:%s.long_conn = %d", nodekey, p->long_conn);
-        ZCNOTE("group:%s.mode = %d", nodekey, p->mode);
-        ZCNOTE("group:%s.copy_num = %d", nodekey, p->copy_num);
+        ZCNOTE("group:%s.policy     = %d", nodekey, p->policy);
+        ZCNOTE("group:%s.long_conn  = %d", nodekey, p->long_conn);
+        ZCNOTE("group:%s.mode       = %d", nodekey, p->mode);
+        ZCNOTE("group:%s.copy_num   = %d", nodekey, p->copy_num);
         zcListNode *lnode;
         zc_list_foreach(p->server, lnode) {
             Backend *b = (Backend*)lnode->data;

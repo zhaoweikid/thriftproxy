@@ -15,9 +15,9 @@ typedef struct config_t
 	uint8_t daemon;
 	uint8_t data_flush_mode;
 	char	datafile[256];
-	zcDict  *server;
-	zcDict  *group;
-	zcDict	*method;
+	zcDict  *server;  // all server
+	zcDict  *group;   // all group
+	zcDict	*method;  // all method
 }Config;
 
 extern Config *g_conf;
