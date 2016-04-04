@@ -46,7 +46,7 @@ void	group_delete(void*);
 typedef struct backendinfo_t
 {
 	Backend		*server;
-
+	zcPool		*back_conn;		
 }BackendInfo;
 
 typedef struct policy_t

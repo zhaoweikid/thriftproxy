@@ -1,7 +1,7 @@
 import os, sys, glob
 
 bin = 'thriftproxy'
-zocle = '/home/zhaowei/github/zocle'
+zocle = os.path.join(os.path.dirname(os.path.dirname(os.getcwd())), 'zocle')
 includes = ['../../include', '/usr/local/include', os.path.join(zocle, 'include')]
 sourcedirs = ['.']
 files = []

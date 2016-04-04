@@ -5,7 +5,7 @@ Config *g_conf;
 
 Config* config_load(char *filename)
 {
-    ZCINFO("load config file: %s\n", filename);
+    //ZCINFO("load config file: %s\n", filename);
     g_conf = zc_calloct(Config);
 
     strcpy(g_conf->ip, "127.0.0.1");
@@ -50,11 +50,23 @@ Config* config_load(char *filename)
         ZCFATAL("main.data_flush_mode parse error!");
     }
     
+    value = zc_confdict_get_str(cfdic, "main", "homedir", NULL);
+    if (NULL == value) {
+        ZCFATAL("main.homedir parse error!");
+    }
+    snprintf(g_conf->homedir, sizeof(g_conf->homedir), "%s", value);
+
     value = zc_confdict_get_str(cfdic, "main", "logfile", NULL);
     if (NULL == value) {
         ZCFATAL("main.logfile parse error!");
     }
-    snprintf(g_conf->logfile, sizeof(g_conf->logfile), "%s", value);
+    if (*value == '/') {
+        snprintf(g_conf->logfile, sizeof(g_conf->logfile), "%s", value);
+    }else if (strcmp(value, "stdout") != 0){
+        snprintf(g_conf->logfile, sizeof(g_conf->logfile), "%s/%s", g_conf->homedir, value);
+    }else{
+        strcpy(g_conf->logfile, value);
+    }
 
     value = zc_confdict_get_str(cfdic, "main", "loglevel", NULL);
     if (NULL == value) {
@@ -77,7 +89,11 @@ Config* config_load(char *filename)
     if (NULL == value) {
         ZCFATAL("main.datafile parse error!");
     }
-    snprintf(g_conf->datafile, sizeof(g_conf->datafile), "%s", value);
+    if (*value == '/') {
+        snprintf(g_conf->datafile, sizeof(g_conf->datafile), "%s", value);
+    }else{
+        snprintf(g_conf->datafile, sizeof(g_conf->datafile), "%s/%s", g_conf->homedir, value);
+    }
 
     g_conf->server = zc_dict_new_full(10000, 0, zc_free_func, zc_free_func);
     // method -> group
@@ -236,6 +252,7 @@ config_print()
     ZCNOTE("main.port   = %d", cf->port);
     ZCNOTE("main.timeout= %d", cf->timeout);
     ZCNOTE("main.daemon = %d", cf->daemon);
+    ZCNOTE("main.homedir    = %s", cf->homedir);
     ZCNOTE("main.logfile    = %s", cf->logfile);
     ZCNOTE("main.loglevel   = %d", cf->loglevel);
     ZCNOTE("main.datafile   = %s", cf->datafile);

@@ -10,10 +10,11 @@ typedef struct config_t
 	char	ip[16];
 	int		port;
 	int		timeout;
+	char	homedir[256];
 	char	logfile[256];
 	int		loglevel;
-	uint8_t daemon;
-	uint8_t data_flush_mode;
+	int8_t  daemon;
+	int8_t  data_flush_mode;
 	char	datafile[256];
 	zcDict  *server;  // all server
 	zcDict  *group;   // all group
