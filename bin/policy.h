@@ -17,7 +17,7 @@
 // 带权重随机
 #define POLICY_RAND_W	4	
 
-typedef struct backend_t
+typedef struct backend_conf_t
 {
 	char	name[128];
 	char	ip[16];
@@ -25,9 +25,9 @@ typedef struct backend_t
 	int		timeout;
 	int		weight;
 	int		max_conn; 
-}Backend;
+}BackendConf;
 
-typedef struct group_t
+typedef struct group_conf_t
 {
     char        name[128];
 	uint16_t	policy;
@@ -38,23 +38,10 @@ typedef struct group_t
 	zcList		*server; // all server
 	//Backend		*cur; // 
     zcList      *method; // all method
-}Group;
+}GroupConf;
 
-Group*	group_new();
-void	group_delete(void*);
-
-typedef struct backendinfo_t
-{
-	Backend		*server;
-	zcPool		*back_conn;		
-}BackendInfo;
-
-typedef struct policy_t
-{
-	BackendInfo	*server_info;
-	Backend		*cur;   // current backend server, for server select
-}Policy;
-
+GroupConf*	groupconf_new();
+void		groupconf_delete(void*);
 
 
 #endif

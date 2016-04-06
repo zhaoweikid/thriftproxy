@@ -97,13 +97,13 @@ Config* config_load(char *filename)
 
     g_conf->server = zc_dict_new_full(10000, 0, zc_free_func, zc_free_func);
     // method -> group
-    g_conf->method = zc_dict_new(10000, 0); 
-    g_conf->group  = zc_dict_new_full(10000, 0, zc_free_func, group_delete);
+    g_conf->method = zc_dict_new(10000); 
+    g_conf->group  = zc_dict_new_full(10000, 0, zc_free_func, groupconf_delete);
 
     char *nodekey;
     zc_dict_foreach_keys_start(cfdic->groups, nodekey)
         if (strncmp(nodekey, "backend:", 8) == 0) {
-            Backend *backend = zc_calloct(Backend);
+            BackendConf *backend = zc_calloct(BackendConf);
 
             value = zc_confdict_get_str(cfdic, nodekey, "ip", NULL);
             if (NULL == value) {
@@ -138,7 +138,7 @@ Config* config_load(char *filename)
             //group->server = zc_list_new();
             //group->method = zc_list_new();
 
-            Group* group  = group_new();
+            GroupConf* group  = groupconf_new();
             value = nodekey;
             value += 6; // skip group:
             snprintf(group->name, sizeof(group->name), "%s", value);
@@ -197,7 +197,7 @@ Config* config_load(char *filename)
                     value++;
                 }
                 //ZCDEBUG("server_name:%s\n", server_name);
-                Backend *backend = zc_dict_get(g_conf->server, server_name, 0, NULL);
+                BackendConf *backend = zc_dict_get(g_conf->server, server_name, 0, NULL);
                 if (NULL == backend) {
                     ZCFATAL("%s.server error: %s", nodekey, server_name);
                 }
@@ -230,7 +230,7 @@ Config* config_load(char *filename)
                 method[i] = 0;
                 zc_list_append(group->method, zc_str_new_char(method, 0));
                 //ZCDEBUG("dict add method %s, %p\n", method, group);
-                zc_dict_add(g_conf->method, method, 0, group);
+                zc_dict_add_str(g_conf->method, method, group);
                 while (isblank(*value) || *value == ',') value++;
             }
              
@@ -260,7 +260,7 @@ config_print()
 
     char *nodekey;
     zc_dict_foreach_keys_start(cf->server, nodekey) 
-        Backend *b = (Backend*)node->value;
+        BackendConf *b = (BackendConf*)node->value;
         ZCNOTE("backend:%s.ip       = %s", nodekey, b->ip);
         ZCNOTE("backend:%s.port     = %d", nodekey, b->port);
         ZCNOTE("backend:%s.timeout  = %d", nodekey, b->timeout);
@@ -269,14 +269,14 @@ config_print()
     zc_dict_foreach_keys_end
 
     zc_dict_foreach_keys_start(cf->group, nodekey) 
-        Group *p = (Group*)node->value;
+        GroupConf *p = (GroupConf*)node->value;
         ZCNOTE("group:%s.policy     = %d", nodekey, p->policy);
         ZCNOTE("group:%s.long_conn  = %d", nodekey, p->long_conn);
         ZCNOTE("group:%s.mode       = %d", nodekey, p->mode);
         ZCNOTE("group:%s.copy_num   = %d", nodekey, p->copy_num);
         zcListNode *lnode;
         zc_list_foreach(p->server, lnode) {
-            Backend *b = (Backend*)lnode->data;
+            BackendConf *b = (BackendConf*)lnode->data;
             ZCNOTE("group:%s.server = %s", nodekey, b->name);
         }
         zc_list_foreach(p->method, lnode) {

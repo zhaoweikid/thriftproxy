@@ -1,9 +1,9 @@
 #include "policy.h"
 
 
-Group* group_new()
+GroupConf* groupconf_new()
 {
-    Group *p = zc_calloct(Group);
+    GroupConf *p = zc_calloct(GroupConf);
 
     p->server = zc_list_new();
     p->server->del = zc_free_func;
@@ -15,9 +15,9 @@ Group* group_new()
     return p;
 }
 
-void group_delete(void *x)
+void groupconf_delete(void *x)
 {
-    Group *p = (Group*)x;
+    GroupConf *p = (GroupConf*)x;
 
     zc_list_delete(p->server);
     zc_list_delete(p->method);

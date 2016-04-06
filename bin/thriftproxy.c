@@ -2,7 +2,7 @@
 #include <ev.h>
 #include "config.h"
 #include "connection.h"
-
+#include "backend.h"
 
 int thriftproxy_connected(zcAsynIO *conn) 
 {
@@ -51,6 +51,12 @@ int main(int argc, char *argv[])
 
     zc_log_new(g_conf->logfile, g_conf->loglevel);
     config_print();
+
+    int ret = runner_create();
+    if (ret < 0) {
+        ZCNOTE("runner create error! %d", ret);
+        return 0;
+    }
     
     serve();
 

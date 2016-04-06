@@ -24,12 +24,12 @@ int conn_read_head(zcAsynIO *a, const char *data, int len)
 
 int conn_read_body(zcAsynIO *a, const char *data, int len)
 {
-    int i;
+    /*int i;
     for (i=0; i<len; i++) {
         unsigned char c = data[i];
         printf("%02x ", data[i]);
     }
-    printf("\n");
+    printf("\n");*/
 
     int namelen = 0;
 
