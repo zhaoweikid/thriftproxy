@@ -1,5 +1,4 @@
-#ifndef __CONFIG_H__
-#define __CONFIG_H__
+#pragma once
 
 #include <stdio.h>
 #include <stdint.h>
@@ -27,4 +26,3 @@ extern Config *g_conf;
 Config*	config_load(char *filename);
 void	config_print();
 
-#endif

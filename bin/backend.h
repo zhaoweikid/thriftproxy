@@ -1,5 +1,4 @@
-#ifndef __BACKEND_H__
-#define __BACKEND_H__
+#pragma once
 
 #include <zocle/zocle.h>
 #include "config.h"
@@ -56,5 +55,3 @@ BackendInfo*	backinfo_new();
 void			backinfo_delete(void*);
 
 int				runner_create();
-
-#endif

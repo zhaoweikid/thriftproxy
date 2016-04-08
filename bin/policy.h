@@ -1,5 +1,4 @@
-#ifndef __POLICY_H__
-#define __POLICY_H__
+#pragma once
 
 #include <stdio.h>
 #include <stdint.h>
@@ -43,5 +42,3 @@ typedef struct group_conf_t
 GroupConf*	groupconf_new();
 void		groupconf_delete(void*);
 
-
-#endif
