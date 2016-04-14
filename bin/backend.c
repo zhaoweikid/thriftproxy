@@ -1,19 +1,22 @@
 #include "backend.h"
+#include "connection.h"
 
 Runner *g_run;
 
 BackendConn*	
-backconn_new(BackendConf *backend, struct ev_loop *loop)
+backconn_new(BackendConf *backend, struct ev_loop *loop, zcAsynIO *fromconn)
 {
     BackendConn *bconn = zc_calloct(BackendConn);
     bconn->bconf = backend;
 
+    BackData *data = zc_calloct(BackData);
+    data->conn = fromconn;
+
     //bconn->client = zc_socket_new_client_tcp(backend->ip, backend->port, backend->timeout);
-    bconn->client = zc_asynio_new_tcp_client(backend->ip, 
+    bconn->client = zc_thriftconn_new_client(backend->ip, 
                 backend->port,
                 backend->timeout,
-                NULL,
-                loop, 0, 0
+                loop, data
                 );
 
 
@@ -27,6 +30,12 @@ backconn_delete(void *x)
     BackendConn *conn = (BackendConn*)x;
     zc_asynio_delete(conn->client);
     zc_free(x);
+}
+
+int
+backconn_send(BackendConn *conn, const char *data, int len)
+{
+    return zc_thriftconn_send(conn->client, data, len);
 }
 
 
@@ -90,9 +99,11 @@ backinfo_new()
     BackendGroup *bgroup;
     zcListNode   *thenode;
     zc_dict_foreach_start(g_conf->group, key, pconf)
+        ZCDEBUG("group key: |%s|", key);
         bgroup = backgroup_new();
         zc_list_foreach(pconf->server, thenode) { 
             char *server_name = (char*)thenode->data;
+            //ZCDEBUG("server name: %s", server_name);
             bpool = zc_dict_get_str(info->server_map, server_name, NULL);
             if (bpool == NULL) {
                 bconf = zc_dict_get_str(g_conf->server, server_name, NULL);
@@ -100,15 +111,18 @@ backinfo_new()
                     ZCWARN("not found server in g_conf->servers: %s", server_name);
                     goto backinfo_error;
                 }
+                ZCDEBUG("add backendpool |%s| to server_map", server_name);
                 bpool = backpool_new(pconf, bconf);
                 zc_dict_add_str(info->server_map, server_name, bpool);
             }
+            ZCDEBUG("add backendpool to backendgroup %p", bgroup);
             backgroup_add_pool(bgroup, bpool);
         }
        
         zc_list_foreach(pconf->method, thenode) { 
-            char *method_name = (char*)thenode->data;
-            zc_dict_add_str(info->method_map, method_name, bgroup);
+            zcString *method_name = (zcString*)thenode->data;
+            ZCDEBUG("add backgroup %p with method |%s| to method_map", bgroup, method_name->data);
+            zc_dict_add_str(info->method_map, method_name->data, bgroup);
         }
 
     zc_dict_foreach_end

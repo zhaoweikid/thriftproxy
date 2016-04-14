@@ -7,7 +7,7 @@ sourcedirs = ['.']
 files = []
 for d in sourcedirs:
 	files += glob.glob(d + '/*.c')
-libs = ['pcre', 'crypto', 'ssl', 'm', 'pthread']
+libs = ['m', 'pthread']
 defs = ['_REENTRANT', '_GNU_SOURCE', 'ZOCLE_WITH_LIBEV']
 libpath = ['/usr/local/lib']
 ldflags = ''

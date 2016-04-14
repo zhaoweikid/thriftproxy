@@ -24,7 +24,8 @@ int serve()
     struct ev_loop *loop = ev_default_loop (0);
 
     ZCNOTICE("server started at %s:%d timeout=%d", g_conf->ip, g_conf->port, g_conf->timeout);
-    zcAsynIO *conn = zc_asynio_new_tcp_server(g_conf->ip, g_conf->port, g_conf->timeout, &p, loop, 1024, 1024);
+    zcAsynIO *conn = zc_asynio_new_tcp_server(g_conf->ip, g_conf->port, g_conf->timeout, 
+            &p, loop, 16384, 16384);
     if (NULL == conn) {
         ZCERROR("server create error");
         return 0;

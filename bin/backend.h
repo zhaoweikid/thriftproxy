@@ -43,6 +43,7 @@ extern Runner *g_run;
 
 BackendConn*	backconn_new(BackendConf *,  struct ev_loop *loop);
 void			backconn_delete(void*);
+int             backconn_send(BackendConn *conn, const char *data, int len, zcAsynIO *fromconn);
 
 BackendPool*	backpool_new(GroupConf *, BackendConf *);
 void			backpool_delete(void*);
