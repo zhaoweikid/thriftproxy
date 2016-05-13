@@ -34,12 +34,6 @@ typedef struct backendinfo_t
 	zcDict	*method_map;  // method_name => BackendGroup
 }BackendInfo;
 
-typedef struct runner_t
-{
-	BackendInfo	*binfo;
-}Runner;
-
-extern Runner *g_run;
 
 BackendConn*	backconn_new(BackendConf *,  struct ev_loop *loop);
 void			backconn_delete(void*);
@@ -54,5 +48,3 @@ int				backgroup_add_pool(BackendGroup*, BackendPool *);
 
 BackendInfo*	backinfo_new();
 void			backinfo_delete(void*);
-
-int				runner_create();

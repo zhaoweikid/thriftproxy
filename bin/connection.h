@@ -6,12 +6,13 @@
 int conn_read_head(zcAsynIO *a, const char *data, int len);
 int conn_read_body(zcAsynIO *a, const char *data, int len);
 
-typedef struct frontconn_t
+typedef struct frontdata_t
 {
 	AsynIO	*client;
-}FrontConn;
+	
+}FrontData;
 
-typedef struct thriftconn_t
+typedef struct backdata_t
 {
 	BackendConn	*conn;
 	int			(*callback)(zcAsynIO *);

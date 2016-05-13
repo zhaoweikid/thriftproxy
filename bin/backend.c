@@ -1,7 +1,27 @@
 #include "backend.h"
 #include "connection.h"
 
-Runner *g_run;
+int backclient_read_head(zcAsynIO *a, const char *data, int len)
+{
+    int headlen = 0;
+   
+    memcpy(&headlen, data, 4);
+    headlen = htob32(headlen);
+
+    zc_asynio_read_bytes(a, headlen, thriftconn_read_body);
+    
+    return ZC_OK;
+}
+
+
+int backclient_read_body(zcAsynIO *a, const char *data, int len)
+{
+    BackData *b = (BackData*)a->data;
+    backconn_send(b->conn, data, len);
+
+    return ZC_OK;
+} 
+
 
 BackendConn*	
 backconn_new(BackendConf *backend, struct ev_loop *loop, zcAsynIO *fromconn)
@@ -13,12 +33,14 @@ backconn_new(BackendConf *backend, struct ev_loop *loop, zcAsynIO *fromconn)
     data->conn = fromconn;
 
     //bconn->client = zc_socket_new_client_tcp(backend->ip, backend->port, backend->timeout);
-    bconn->client = zc_thriftconn_new_client(backend->ip, 
+    bconn->client = zc_asynio_new_tcp_client(backend->ip, 
                 backend->port,
                 backend->timeout,
-                loop, data
+                NULL,
+                loop, 0, 0
                 );
 
+    bconn->client->data = (void*)data;
 
     return bconn;
 }
@@ -31,6 +53,10 @@ backconn_delete(void *x)
     zc_asynio_delete(conn->client);
     zc_free(x);
 }
+
+
+
+
 
 int
 backconn_send(BackendConn *conn, const char *data, int len)
@@ -144,14 +170,5 @@ backinfo_delete(void *x)
     zc_free(info);
 }
 
-
-int
-runner_create()
-{
-    g_run = zc_calloct(Runner);
-    g_run->binfo = backinfo_new();
-
-    return ZC_OK;
-}
 
 

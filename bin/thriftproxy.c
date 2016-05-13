@@ -4,6 +4,24 @@
 #include "connection.h"
 #include "backend.h"
 
+Runner *g_run;
+
+typedef struct runner_t
+{
+	BackendInfo	*binfo;
+}Runner;
+
+int
+runner_create()
+{
+    g_run = zc_calloct(Runner);
+    g_run->binfo = backinfo_new();
+
+    return ZC_OK;
+}
+
+
+
 int thriftproxy_connected(zcAsynIO *conn) 
 {
     ZCINFO("connected!");
@@ -42,7 +60,7 @@ int serve()
 
 int main(int argc, char *argv[]) 
 {
-    if (argc < 2) {
+    if (argc != 2) {
         printf("usage: \n\tthriftproxy configfile\n\n");
         return 0;
     }
