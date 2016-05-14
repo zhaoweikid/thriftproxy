@@ -41,20 +41,30 @@ find_backend_conn(char *name)
     return conn;    
 }
 
-int conn_read_head(zcAsynIO *a, const char *data, int len)
+int frontconn_connected(zcAsynIO *conn) 
+{
+    ZCINFO("connected!");
+    zc_socket_linger(conn->sock, 1, 0); 
+    zc_asynio_read_bytes(conn, 4, frontconn_read_head);
+
+    return ZC_OK;
+}
+
+
+int frontconn_read_head(zcAsynIO *conn, const char *data, int len)
 {
     int headlen = 0;
    
     memcpy(&headlen, data, 4);
     headlen = htob32(headlen);
 
-    zc_asynio_read_bytes(a, headlen, conn_read_body);
+    zc_asynio_read_bytes(conn, headlen, frontconn_read_body);
     
     return ZC_OK;
 }
 
 
-int conn_read_body(zcAsynIO *a, const char *data, int len)
+int frontconn_read_body(zcAsynIO *conn, const char *data, int len)
 {
     int namelen = 0;
 
@@ -62,60 +72,22 @@ int conn_read_body(zcAsynIO *a, const char *data, int len)
     namelen = htob32(namelen);
     ZCDEBUG("namelen:%d", namelen);
 
-    char name[64] = {0};
+    char name[256] = {0};
     strncpy(name, data+8, namelen);
 
     ZCDEBUG("name:%s", name); 
     
-    BackendConn *conn = find_backend_conn(name);
-    backconn_send(conn, data, len, a);
+    BackendConn *bconn = find_backend_conn(name);
+    backconn_send(bconn, data, len, conn);
+
+    conn->data = bconn;
     
     return ZC_OK;
 }
 
-int thriftconn_read_head(zcAsynIO *a, const char *data, int len)
-{
-    int headlen = 0;
-   
-    memcpy(&headlen, data, 4);
-    headlen = htob32(headlen);
-
-    zc_asynio_read_bytes(a, headlen, thriftconn_read_body);
-    
-    return ZC_OK;
-}
-
-
-int thriftconn_read_body(zcAsynIO *a, const char *data, int len)
-{
-    BackData *b = (BackData*)a->data;
-
-    backconn_send(b->conn, data, len);
-
-    return ZC_OK;
-} 
-
-zcAsynIO*	
-zc_thriftconn_new_client(const char *host, int port, int timeout, 
-				struct ev_loop *loop, BackData *data)
-{
-    zcAsynIO *conn = zc_asynio_new_tcp_client(host, port, timeout, NULL, loop, 0, 0);
-    conn->data = (void*)data;
-
-    return conn;
-}
-
-void
-zc_thriftconn_delete(void *x)
-{
-    zcAsynIO *conn = (zcAsynIO*)x;
-    
-    //zc_free(conn->data);
-    zc_asynio_delete(conn); 
-}
 
 int 
-zc_thriftconn_send(zcAsynIO *conn, const char *data, int len)
+frontconn_send(zcAsynIO *conn, const char *data, int len)
 {
     char head[16] = {0};
     int newlen = b32toh(len); 

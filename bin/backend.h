@@ -7,24 +7,22 @@
 typedef struct backendconn_t
 {
 	BackendConf	*bconf;
-	//zcSocket	*client;
 	zcAsynIO	*client;
 }BackendConn;
 
 // BackendPool => BackendConn
 typedef struct backendpool_t
 {
-	zcList		*pool;
-	BackendConn	*cur;
+	zcList		*conns;
 	BackendConf	*bconf;
 	GroupConf	*pconf;
 }BackendPool;
 
 
+// BackendGroup => BackendPool
 typedef struct backendgroup_t
 {
 	zcList		*pools;
-	BackendPool	*cur;
 }BackendGroup;
 
 // method => backendinfo

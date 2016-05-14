@@ -1,7 +1,7 @@
 #include <zocle/zocle.h>
 #include <ev.h>
 #include "config.h"
-#include "connection.h"
+#include "front.h"
 #include "backend.h"
 
 Runner *g_run;
@@ -20,16 +20,6 @@ runner_create()
     return ZC_OK;
 }
 
-
-
-int thriftproxy_connected(zcAsynIO *conn) 
-{
-    ZCINFO("connected!");
-    zc_socket_linger(conn->sock, 1, 0); 
-    zc_asynio_read_bytes(conn, 4, conn_read_head);
-
-    return ZC_OK;
-}
 
 
 int serve()
@@ -73,8 +63,7 @@ int main(int argc, char *argv[])
 
     int ret = runner_create();
     if (ret < 0) {
-        ZCNOTE("runner create error! %d", ret);
-        return 0;
+        ZCNOTE("runner create error! %d", ret); return 0;
     }
     
     serve();

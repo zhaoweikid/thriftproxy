@@ -14,7 +14,7 @@
 // 随机
 #define POLICY_RAND		3	
 // 带权重随机
-#define POLICY_RAND_W	4	
+#define POLICY_WRAND	4	
 
 typedef struct backend_conf_t
 {

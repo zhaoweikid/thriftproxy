@@ -69,7 +69,8 @@ BackendPool*
 backpool_new(GroupConf *pconf, BackendConf *bconf)
 {
     BackendPool *p = zc_calloct(BackendPool);
-    p->pool  = zc_list_new();
+    p->conns = zc_list_new();
+    p->conns->del = backconn_delete;
     p->pconf = pconf;
     p->bconf = bconf;
 
@@ -82,7 +83,7 @@ backpool_delete(void *x)
 {
     BackendPool *p = (BackendPool*)x;
 
-    zc_list_delete(p->pool);
+    zc_list_delete(p->conns);
     zc_free(p);
 }
 
