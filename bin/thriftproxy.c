@@ -6,11 +6,6 @@
 
 Runner *g_run;
 
-typedef struct runner_t
-{
-	BackendInfo	*binfo;
-}Runner;
-
 int
 runner_create()
 {
@@ -27,7 +22,8 @@ int serve()
     zcProtocol p;
 
     zc_protocol_init(&p);
-    p.handle_connected = thriftproxy_connected;
+    p.handle_connected = frontconn_connected;
+    p.handle_close = frontconn_delete;
     
     struct ev_loop *loop = ev_default_loop (0);
 
@@ -37,7 +33,8 @@ int serve()
     if (NULL == conn) {
         ZCERROR("server create error");
         return 0;
-    }   
+    }
+    conn->rbuf_auto_compact = 0;
 
     ev_run (loop, 0); 
     ZCINFO("stopped");

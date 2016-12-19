@@ -1,5 +1,15 @@
 #include "backend.h"
-#include "connection.h"
+#include "endian_swap.h"
+
+int backclient_read_body(zcAsynIO *c, const char *data, int len)
+{
+    Session *s = (Session*)c->data;
+    
+    zc_buffer_append(s->front_conn->wbuf, (char*)data, len);
+    zc_asynio_write_start(s->front_conn);
+
+    return ZC_OK;
+}
 
 int backclient_read_head(zcAsynIO *a, const char *data, int len)
 {
@@ -8,39 +18,24 @@ int backclient_read_head(zcAsynIO *a, const char *data, int len)
     memcpy(&headlen, data, 4);
     headlen = htob32(headlen);
 
-    zc_asynio_read_bytes(a, headlen, thriftconn_read_body);
+    zc_asynio_read_bytes(a, headlen, backclient_read_body);
     
     return ZC_OK;
 }
 
 
-int backclient_read_body(zcAsynIO *a, const char *data, int len)
-{
-    BackData *b = (BackData*)a->data;
-    backconn_send(b->conn, data, len);
-
-    return ZC_OK;
-} 
-
 
 BackendConn*	
-backconn_new(BackendConf *backend, struct ev_loop *loop, zcAsynIO *fromconn)
+backconn_new(BackendConf *backend, struct ev_loop *loop)
 {
     BackendConn *bconn = zc_calloct(BackendConn);
     bconn->bconf = backend;
 
-    BackData *data = zc_calloct(BackData);
-    data->conn = fromconn;
-
-    //bconn->client = zc_socket_new_client_tcp(backend->ip, backend->port, backend->timeout);
-    bconn->client = zc_asynio_new_tcp_client(backend->ip, 
-                backend->port,
-                backend->timeout,
-                NULL,
-                loop, 0, 0
-                );
-
-    bconn->client->data = (void*)data;
+    zcAsynIO *c = bconn->client;
+    c = zc_asynio_new_tcp_client(backend->ip, backend->port, backend->timeout,
+                NULL, loop, 0, 0);
+    c->rbuf_auto_compact = 0;
+    zc_asynio_read_bytes(c, 4, backclient_read_head);
 
     return bconn;
 }
@@ -54,23 +49,26 @@ backconn_delete(void *x)
     zc_free(x);
 }
 
-
-
-
-
 int
-backconn_send(BackendConn *conn, const char *data, int len)
+backconn_send(BackendConn *conn, const char *data, int len, Session *s)
 {
-    return zc_thriftconn_send(conn->client, data, len);
+    zc_buffer_append(conn->client->wbuf, (char*)data, len);
+    conn->client->data = (void*)s;
+    zc_asynio_write_start(conn->client);
+    return ZC_OK;
 }
 
-
+// --------------------------------------
 BackendPool*    
 backpool_new(GroupConf *pconf, BackendConf *bconf)
 {
     BackendPool *p = zc_calloct(BackendPool);
-    p->conns = zc_list_new();
-    p->conns->del = backconn_delete;
+    p->conn_idle = zc_list_new();
+    p->conn_idle->del = backconn_delete;
+
+    p->conn_use = zc_list_new();
+    p->conn_use->del = backconn_delete;
+
     p->pconf = pconf;
     p->bconf = bconf;
 
@@ -83,10 +81,12 @@ backpool_delete(void *x)
 {
     BackendPool *p = (BackendPool*)x;
 
-    zc_list_delete(p->conns);
+    zc_list_delete(p->conn_idle);
+    zc_list_delete(p->conn_use);
     zc_free(p);
 }
 
+// --------------------------------------
 BackendGroup*   
 backgroup_new()
 {
@@ -110,12 +110,15 @@ backgroup_add_pool(BackendGroup *bgroup, BackendPool *p)
     return ZC_OK;
 }
 
+// --------------------------------------
 BackendInfo*    
 backinfo_new()
 {
     BackendInfo *info = zc_calloct(BackendInfo);
 
+    // server => backpool
     info->server_map = zc_dict_new_full(1000, 0, zc_free_func, backpool_delete);
+    // method => backgroup 
     info->method_map = zc_dict_new_full(10000, 0, zc_free_func, backgroup_delete);
 
     char        *key;
@@ -171,5 +174,59 @@ backinfo_delete(void *x)
     zc_free(info);
 }
 
+BackendConn*
+backinfo_get_backend_conn(BackendInfo *binfo, char *name, BackendPool **bpool)
+{
+    // method_name => group => server conn pool
+    //BackendInfo *binfo = g_run->binfo;
+
+    BackendGroup *bg = zc_dict_get_str(binfo->method_map, name, NULL);
+    if (NULL == bg) {
+        ZCDEBUG("not found backendgroup with name:%s", name);
+        return NULL;
+    }
+
+    ZCDEBUG("backgroup %s pool size:%d", name, bg->pools->size);
+    if (bg->pools->size == 0) {
+        ZCWARN("backgounp error!");     
+        return NULL;
+    }
+
+    if (bg->cur == NULL) {
+        bg->cur = zc_list_at(bg->pools, 0, NULL);
+        if (bg->cur == NULL) {
+            ZCDEBUG("backgroup cur error!");
+            return NULL;
+        }
+    }
+
+    BackendPool *p = bg->cur;
+
+    BackendConn *conn;
+    if (p->conn_idle->size == 0) {
+        struct ev_loop *loop = ev_default_loop (0);
+        conn = backconn_new(p->bconf, loop);
+        zc_list_append(p->conn_idle, conn);
+    }else{
+        conn = zc_list_pop(p->conn_idle, 0, NULL);
+        zc_list_append(p->conn_use, conn);
+    }
+
+    if (bpool) 
+        bpool = &p;
+    
+    return conn;    
+}
+
+void
+backinfo_put_backend_conn(BackendInfo *binfo, BackendPool *pool, BackendConn *conn)
+{
+    int ret = zc_list_remove(pool->conn_use, conn);
+    if (ret != ZC_OK) {
+        ZCWARN("remove conn %p error", conn);
+        return;
+    }
+    zc_list_prepend(pool->conn_idle, conn);
+}
 
 
