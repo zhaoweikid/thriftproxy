@@ -26,3 +26,4 @@ extern Config *g_conf;
 Config*	config_load(char *filename);
 void	config_print();
 
+void    print_hex(const char *s, int len, int ln);

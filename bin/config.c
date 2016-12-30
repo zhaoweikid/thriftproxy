@@ -288,5 +288,16 @@ config_print()
 
 
 
+void    
+print_hex(const char *s, int len, int ln)
+{
+    int i;
+
+    for (i=0; i<len; i++) {
+        printf("%02X ", s[i]);
+    }
+    if (ln == 1)
+        printf("\n");
+}
 
 

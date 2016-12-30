@@ -23,7 +23,6 @@ int serve()
 
     zc_protocol_init(&p);
     p.handle_connected = frontconn_connected;
-    p.handle_close = frontconn_delete;
     
     struct ev_loop *loop = ev_default_loop (0);
 
@@ -47,6 +46,7 @@ int serve()
 
 int main(int argc, char *argv[]) 
 {
+    zc_mem_init(ZC_MEM_GLIBC|ZC_MEM_DBG_OVERFLOW);
     if (argc != 2) {
         printf("usage: \n\tthriftproxy configfile\n\n");
         return 0;

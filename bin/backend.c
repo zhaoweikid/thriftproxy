@@ -1,24 +1,26 @@
 #include "backend.h"
 #include "endian_swap.h"
+#include "front.h"
 
 int backclient_read_body(zcAsynIO *c, const char *data, int len)
 {
     Session *s = (Session*)c->data;
-    
-    zc_buffer_append(s->front_conn->wbuf, (char*)data, len);
-    zc_asynio_write_start(s->front_conn);
+
+    frontconn_send(s->front_conn, (char*)c->rbuf->data, c->rbuf->pos+len, s);
+    zc_buffer_clear(c->rbuf);
 
     return ZC_OK;
 }
 
-int backclient_read_head(zcAsynIO *a, const char *data, int len)
+int backclient_read_head(zcAsynIO *c, const char *data, int len)
 {
     int headlen = 0;
    
     memcpy(&headlen, data, 4);
     headlen = htob32(headlen);
 
-    zc_asynio_read_bytes(a, headlen, backclient_read_body);
+    zc_asynio_read_bytes(c, headlen, backclient_read_body);
+    c->rbuf->pos += 4;
     
     return ZC_OK;
 }
@@ -33,9 +35,10 @@ backconn_new(BackendConf *backend, struct ev_loop *loop)
 
     zcAsynIO *c = bconn->client;
     c = zc_asynio_new_tcp_client(backend->ip, backend->port, backend->timeout,
-                NULL, loop, 0, 0);
+                NULL, loop, 16384, 16384);
     c->rbuf_auto_compact = 0;
     zc_asynio_read_bytes(c, 4, backclient_read_head);
+    bconn->client = c;
 
     return bconn;
 }
@@ -206,14 +209,14 @@ backinfo_get_backend_conn(BackendInfo *binfo, char *name, BackendPool **bpool)
     if (p->conn_idle->size == 0) {
         struct ev_loop *loop = ev_default_loop (0);
         conn = backconn_new(p->bconf, loop);
-        zc_list_append(p->conn_idle, conn);
     }else{
         conn = zc_list_pop(p->conn_idle, 0, NULL);
-        zc_list_append(p->conn_use, conn);
     }
+    zc_list_append(p->conn_use, conn);
 
+    ZCDEBUG("get bpool:%p, pool:%p conn:%p", bpool, p, conn);
     if (bpool) 
-        bpool = &p;
+        *bpool = p;
     
     return conn;    
 }
